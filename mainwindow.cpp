@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QMediaPlayer>
 #include <QMediaPlaylist>
+#include <QReadWriteLock>
 
 #include "clientid.h"
 #include "SpotifySearch.h"
@@ -122,7 +123,9 @@ void MainWindow::on_pbSearch_clicked()
 }
 
 void MainWindow::newTrackSearchFound(QString trackID, QString trackName, QString previewURL)
-{
+{    
+    lockModelSearch.lockForRead();
+
     int row = m_viewModelSearch->rowCount();
 
     QStandardItem *siName = new QStandardItem(trackName);
@@ -132,6 +135,8 @@ void MainWindow::newTrackSearchFound(QString trackID, QString trackName, QString
     m_viewModelSearch->setItem(row,0, siName);
     m_viewModelSearch->setItem(row,1, siID);
     m_viewModelSearch->setItem(row,2, siPreviewURL);
+
+    lockModelSearch.unlock();
 }
 
 
@@ -139,6 +144,8 @@ void MainWindow::newTrackSearchFound(QString trackID, QString trackName, QString
 void MainWindow::on_pbAdd_clicked()
 {
     QString strPlayListName = ui->inputPlaylistName->text();
+
+    lockModelPlaylist.lockForRead();
 
     QList<QStandardItem*> otherPlaylist;
     otherPlaylist = m_viewModelPlaylist->findItems(strPlayListName, Qt::MatchFlag::MatchExactly, 0);
@@ -151,6 +158,8 @@ void MainWindow::on_pbAdd_clicked()
         msgBox.setDefaultButton(QMessageBox::Close);
         msgBox.exec();
 
+        lockModelPlaylist.unlock();
+
         return;
     }
 
@@ -158,6 +167,7 @@ void MainWindow::on_pbAdd_clicked()
     QStandardItem *siPlaylist = new QStandardItem(strPlayListName);
     m_viewModelPlaylist->setItem(row, 0, siPlaylist);
 
+    lockModelPlaylist.unlock();
 }
 
 void MainWindow::on_pbAddMusic_clicked()
@@ -191,6 +201,9 @@ void MainWindow::on_pbAddMusic_clicked()
         }
 
         // get the track name and id from search
+
+        lockModelSearch.lockForRead();
+
         int trackRow = selectionTracks[0].row();
         QModelIndex index = m_viewModelSearch->index(trackRow,TW_PL_NAME,QModelIndex());
         QStandardItem *siTrackName = m_viewModelSearch->itemFromIndex(index)->clone();
@@ -199,7 +212,11 @@ void MainWindow::on_pbAddMusic_clicked()
         index = m_viewModelSearch->index(trackRow,TW_PL_URL,QModelIndex());
         QStandardItem *siTrackPreviewURL = m_viewModelSearch->itemFromIndex(index)->clone();
 
+        lockModelSearch.unlock();
+
         // find the playlist selected.
+        lockModelPlaylist.lockForRead();
+
         int playlistRow = selectionPlaylist[0].row();
         index = m_viewModelPlaylist->index(playlistRow,0,QModelIndex());
         qDebug() << m_viewModelPlaylist->data(index).toString();
@@ -249,8 +266,11 @@ void MainWindow::on_pbAddMusic_clicked()
         siPlaylist->setChild(iTrackOnPlaylist, TW_PL_NAME, siTrackName);
         siPlaylist->setChild(iTrackOnPlaylist, TW_PL_ID, siTrackID);
         siPlaylist->setChild(iTrackOnPlaylist, TW_PL_URL, siTrackPreviewURL);
+
+        lockModelPlaylist.unlock();
     } catch (...) {
        qDebug() << "Exception on on_pbAddMusic_clicked.";
+       lockModelPlaylist.unlock();
     }
 }
 
@@ -266,12 +286,16 @@ void MainWindow::on_pbRemove_clicked()
     {
         row = selection[0].row();
 
+        lockModelPlaylist.lockForRead();
+
         items = m_viewModelPlaylist->takeRow(row);
 
         foreach(QStandardItem *item, items)
         {
             delete(item);
         }
+
+        lockModelPlaylist.unlock();
     }
 }
 
@@ -294,6 +318,8 @@ void MainWindow::on_pbRemoveMusic_clicked()
         }
 
         // remove all tracks checked on the current playlist.
+        lockModelPlaylist.lockForRead();
+
         int playlistRow = selectionPlaylist[0].row();
         QModelIndex index = m_viewModelPlaylist->index(playlistRow,0,QModelIndex());
         qDebug() << m_viewModelPlaylist->data(index).toString();
@@ -320,8 +346,11 @@ void MainWindow::on_pbRemoveMusic_clicked()
                 }
             }
         }
+
+        lockModelPlaylist.unlock();
     } catch (...) {
        qDebug() << "Exception on on_pbRemoveMusic_clicked.";
+       lockModelPlaylist.unlock();
     }
 }
 
@@ -352,6 +381,8 @@ void MainWindow::on_pbPlay_clicked()
     QList<QStandardItem*> items ;
     int playlistRow = selection[0].row();
 
+    lockModelPlaylist.lockForRead();
+
     QModelIndex index = m_viewModelPlaylist->index(playlistRow,0,QModelIndex());
     QStandardItem *siPlaylist = m_viewModelPlaylist->itemFromIndex(index);
     qDebug() << "siPlaylist: " << siPlaylist->text();
@@ -365,6 +396,8 @@ void MainWindow::on_pbPlay_clicked()
 
         m_playlistPreview->addMedia(QUrl(siChildPreviewURL->text()));
     }
+
+    lockModelPlaylist.unlock();
 
     m_playerPreview->setPlaylist(m_playlistPreview);
 
@@ -424,6 +457,8 @@ void MainWindow::on_pbPlaylistSave_clicked()
             xmlWriter.writeStartElement("PlayLists");
 
             // Add  playlists
+            lockModelPlaylist.lockForRead();
+
             int iPlaylistRows = m_viewModelPlaylist->rowCount();
             for( int iPlaylistRow = 0; iPlaylistRow < iPlaylistRows; ++iPlaylistRow)
             {
@@ -470,12 +505,16 @@ void MainWindow::on_pbPlaylistSave_clicked()
             qDebug() << "Playlist.xml saved with success.";
             ui->pteStatus->clear();
             ui->pteStatus->appendPlainText("Playlists salvas com sucesso.");
+
+            lockModelPlaylist.unlock();
         }
 
     } catch (...) {
         qDebug() << "Fail to open the Playlist.xml file.";
         ui->pteStatus->clear();
         ui->pteStatus->appendPlainText("Salvar o arquivo falhou. Não foi possível criar o arquivo para salvar a lista.");
+
+        lockModelPlaylist.unlock();
     }
 }
 
@@ -519,6 +558,8 @@ void MainWindow::on_pbPlaylisttLoad_clicked()
                 return;
             }
 
+            lockModelPlaylist.lockForRead();
+
             QDomNodeList nodeListPlaylist = doc.elementsByTagName("Playlist");
 
             for (int iPlaylist = 0; iPlaylist < nodeListPlaylist.size(); iPlaylist++)
@@ -528,7 +569,7 @@ void MainWindow::on_pbPlaylisttLoad_clicked()
 
                 QString strPlayListName = nodePlaylist.attributes().namedItem("name").nodeValue();
 
-                // add playlist on model
+                // add playlist on model                
                 QStandardItem *siPlaylist = new QStandardItem(strPlayListName);
                 m_viewModelPlaylist->setItem(iPlaylist, 0, siPlaylist);
 
@@ -558,30 +599,42 @@ void MainWindow::on_pbPlaylisttLoad_clicked()
             qDebug() << "Playlist.xml load with success.";
             ui->pteStatus->clear();
             ui->pteStatus->appendPlainText("Playlists carregada com sucesso.");
+
+            lockModelPlaylist.unlock();
         }
 
     } catch (...) {
         qDebug() << "Fail to open the Playlist.xml file.";
         ui->pteStatus->clear();
         ui->pteStatus->appendPlainText("Carregar playlist falhou. Não foi possível abrir o arquivo.");
+
+        lockModelPlaylist.unlock();
     }
 }
 
 void MainWindow::restartTrackSearch()
 {
+    lockModelSearch.lockForRead();
+
     QStringList strMusicHeadLables;
     strMusicHeadLables << "Musica" << "ID";
     m_viewModelSearch->clear();
     m_viewModelSearch->setHorizontalHeaderLabels(strMusicHeadLables);
     ui->twMusicSearchResults->resizeColumnsToContents();
     ui->twMusicSearchResults->hideColumn(2);
+
+    lockModelSearch.unlock();
 }
 
 void MainWindow::restartPlaylist()
 {
+    lockModelPlaylist.lockForRead();
+
     QStringList strPlaylistHeadLables;
     strPlaylistHeadLables << "Nome" << "ID";
     m_viewModelPlaylist->clear();
     m_viewModelPlaylist->setHorizontalHeaderLabels(strPlaylistHeadLables);
     ui->treeViewPlaylist->hideColumn(2);
+
+    lockModelPlaylist.unlock();
 }

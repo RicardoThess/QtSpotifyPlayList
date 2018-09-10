@@ -21,8 +21,6 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-    QStandardItemModel *m_viewModelPlaylist;
-    QStandardItemModel *m_viewModelSearch;
 
 private slots:
 
@@ -65,6 +63,11 @@ private:
 
     bool isGranted;
     QString userName;
+
+    QReadWriteLock lockModelPlaylist;
+    QStandardItemModel *m_viewModelPlaylist;
+    QReadWriteLock lockModelSearch;
+    QStandardItemModel *m_viewModelSearch;
 
     SpotifySearch *m_instSpotifySearch;
 
