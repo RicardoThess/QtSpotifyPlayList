@@ -21,7 +21,7 @@ bool SpotifySearch::SearchTracksByName(QOAuth2AuthorizationCodeFlow *spotify, co
 {
     if( spotify == Q_NULLPTR)
     {
-        qDebug ("SearchTracksByName received a Null pointer.");
+        qDebug() << "SearchTracksByName received a Null pointer.";
         return false;
     }
 

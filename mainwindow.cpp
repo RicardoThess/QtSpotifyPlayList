@@ -52,7 +52,7 @@ MainWindow::MainWindow(QWidget *parent) :
     m_viewModelSearch = new QStandardItemModel(0, 3, this);
     ui->twMusicSearchResults->setModel(m_viewModelSearch);
 
-
+    // Model that contain all playlists
     m_viewModelPlaylist = new QStandardItemModel(0, 3, this);    
     ui->treeViewPlaylist->setModel(m_viewModelPlaylist);    
 
@@ -113,7 +113,7 @@ void MainWindow::on_pbSearch_clicked()
 
     if( m_instSpotifySearch == Q_NULLPTR )
     {
-        qDebug("m_instSpotifySearch null pointer.");
+        qDebug() << "m_instSpotifySearch null pointer.";
         return;
     }
 
@@ -355,6 +355,8 @@ void MainWindow::on_pbRemoveMusic_clicked()
 }
 
 
+// --------------------------- PLAY TRACKS ---------------------------------------
+
 void MainWindow::on_pbPlay_clicked()
 {
     ui->pteStatus->clear();
@@ -423,6 +425,8 @@ void MainWindow::on_pbPause_clicked()
     }
 }
 
+
+// ------------------------------- SAVE and LOAD the Playlist in locally --------------------------
 void MainWindow::on_pbPlaylistSave_clicked()
 {
     /*  XML File format
@@ -612,6 +616,8 @@ void MainWindow::on_pbPlaylisttLoad_clicked()
     }
 }
 
+
+// ------------------------------------ Manipulate the Model to be presented properly -------------------
 void MainWindow::restartTrackSearch()
 {
     lockModelSearch.lockForRead();
